@@ -11,7 +11,7 @@ ifeq ($(QCOM_FM_ENABLED),true)
   common_cflags += -DQCOM_FM_ENABLED
 endif
 
-ifneq ($(BOARD_QCOM_TUNNEL_LPA_ENABLED),false)
+ifeq ($(BOARD_QCOM_TUNNEL_LPA_ENABLED),true)
   common_cflags += -DQCOM_TUNNEL_LPA_ENABLED
 endif
 
@@ -64,9 +64,7 @@ $(shell touch $(OUT)/obj/SHARED_LIBRARIES/libacdbloader_intermediates/export_inc
 $(shell mkdir -p $(OUT)/obj/SHARED_LIBRARIES/libacdbmapper_intermediates/)
 $(shell touch $(OUT)/obj/SHARED_LIBRARIES/libacdbmapper_intermediates/export_includes)
 
-ifneq ($(TARGET_SIMULATOR),true)
 LOCAL_SHARED_LIBRARIES += libdl
-endif
 
 LOCAL_STATIC_LIBRARIES := \
     libmedia_helper \
@@ -93,7 +91,7 @@ LOCAL_ADDITIONAL_DEPENDENCIES := $(TARGET_OUT_INTERMEDIATES)/KERNEL_OBJ/usr
 LOCAL_CFLAGS += $(common_cflags) -Wno-error
 
 include $(BUILD_SHARED_LIBRARY)
-
+ifeq ($(USE_LEGACY_AUDIO_POLICY), 1)
 # The audio policy is implemented on top of legacy policy code
 include $(CLEAR_VARS)
 
@@ -123,6 +121,7 @@ LOCAL_C_INCLUDES += hardware/libhardware_legacy/audio
 LOCAL_CFLAGS += $(common_cflags) -Wno-error
 
 include $(BUILD_SHARED_LIBRARY)
+endif
 
 # Load audio_policy.conf to system/etc/
 include $(CLEAR_VARS)

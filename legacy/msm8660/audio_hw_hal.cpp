@@ -59,6 +59,8 @@ enum {
     HAL_API_REV_NUM
 } hal_api_rev;
 
+static struct qcom_audio_device *qadev = NULL;
+
 static uint32_t audio_device_conv_table[][HAL_API_REV_NUM] =
 {
         /* output devices */
@@ -135,12 +137,12 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
     return out->qcom_out->sampleRate();
 }
 
-static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
+static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate __unused)
 {
     struct qcom_stream_out *out =
         reinterpret_cast<struct qcom_stream_out *>(stream);
 
-    ALOGV("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
+    ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement this */
     return 0;
 }
@@ -156,7 +158,7 @@ static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
     const struct qcom_stream_out *out =
         reinterpret_cast<const struct qcom_stream_out *>(stream);
-    return (audio_channel_mask_t) out->qcom_out->channels();
+    return out->qcom_out->channels();
 }
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
@@ -166,11 +168,11 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
     return (audio_format_t)out->qcom_out->format();
 }
 
-static int out_set_format(struct audio_stream *stream, audio_format_t format)
+static int out_set_format(struct audio_stream *stream, audio_format_t format __unused)
 {
     struct qcom_stream_out *out =
         reinterpret_cast<struct qcom_stream_out *>(stream);
-    ALOGV("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
+    ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement me */
     return 0;
 }
@@ -260,6 +262,7 @@ static int out_get_render_position(const struct audio_stream_out *stream,
     return out->qcom_out->getRenderPosition(dsp_frames);
 }
 
+#ifdef QCOM_TUNNEL_LPA_ENABLED
 static int out_set_observer(const struct audio_stream_out *stream,
                                    void *observer)
 {
@@ -311,19 +314,20 @@ static status_t out_stop(struct audio_stream_out *stream)
         reinterpret_cast<struct qcom_stream_out *>(stream);
     return out->qcom_out->stop();
 }
+#endif
 
-static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+static int out_add_audio_effect(const struct audio_stream *stream __unused, effect_handle_t effect __unused)
 {
     return 0;
 }
 
-static int out_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+static int out_remove_audio_effect(const struct audio_stream *stream __unused, effect_handle_t effect __unused)
 {
     return 0;
 }
 
-static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
-                                        int64_t *timestamp)
+static int out_get_next_write_timestamp(const struct audio_stream_out *stream __unused,
+                                        int64_t *timestamp __unused)
 {
     const struct qcom_stream_out *out =
         reinterpret_cast<const struct qcom_stream_out *>(stream);
@@ -346,12 +350,12 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
     return in->qcom_in->sampleRate();
 }
 
-static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
+static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate __unused)
 {
     struct qcom_stream_in *in =
         reinterpret_cast<struct qcom_stream_in *>(stream);
 
-    ALOGV("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
+    ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement this */
     return 0;
 }
@@ -367,7 +371,7 @@ static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 {
     const struct qcom_stream_in *in =
         reinterpret_cast<const struct qcom_stream_in *>(stream);
-    return (audio_channel_mask_t) in->qcom_in->channels();
+    return in->qcom_in->channels();
 }
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
@@ -377,11 +381,11 @@ static audio_format_t in_get_format(const struct audio_stream *stream)
     return (audio_format_t)in->qcom_in->format();
 }
 
-static int in_set_format(struct audio_stream *stream, audio_format_t format)
+static int in_set_format(struct audio_stream *stream, audio_format_t format __unused)
 {
     struct qcom_stream_in *in =
         reinterpret_cast<struct qcom_stream_in *>(stream);
-    ALOGV("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
+    ALOGE("(%s:%d) %s: Implement me!", __FILE__, __LINE__, __func__);
     /* TODO: implement me */
     return 0;
 }
@@ -561,18 +565,10 @@ static int adev_get_master_volume(struct audio_hw_device *dev, float *volume) {
     return qadev->hwif->getMasterVolume(volume);
 }
 
-#ifdef QCOM_FM_ENABLED
-static int adev_set_fm_volume(struct audio_hw_device *dev, float volume)
-{
-    struct qcom_audio_device *qadev = to_ladev(dev);
-    return qadev->hwif->setFmVolume(volume);
-}
-#endif
-
 static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
 {
     struct qcom_audio_device *qadev = to_ladev(dev);
-    return qadev->hwif->setMode((int)mode);
+    return qadev->hwif->setMode(mode);
 }
 
 static int adev_set_mic_mute(struct audio_hw_device *dev, bool state)
@@ -611,14 +607,14 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
     return qadev->hwif->getInputBufferSize(config->sample_rate,config->format,channelCount);
 }
 
-
 static int adev_open_output_stream(struct audio_hw_device *dev,
-                                   audio_io_handle_t handle,
+                                   audio_io_handle_t handle __unused,
                                    audio_devices_t devices,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out,
                                    const char * address __unused)
+
 {
     struct qcom_audio_device *qadev = to_ladev(dev);
     status_t status;
@@ -632,8 +628,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     devices = convert_audio_device(devices, HAL_API_REV_2_0, HAL_API_REV_1_0);
     status = static_cast<audio_output_flags_t> (flags);
 
-    out->qcom_out = qadev->hwif->openOutputStream(devices,
-                                                    (int *)&config->format,
+    out->qcom_out = qadev->hwif->openOutputStream(devices, (int *) &config->format,
                                                     &config->channel_mask,
                                                     &config->sample_rate,
                                                     &status);
@@ -659,6 +654,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.write = out_write;
     out->stream.get_render_position = out_get_render_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
+#ifdef QCOM_TUNNEL_LPA_ENABLED
     out->stream.start = out_start;
     out->stream.pause = out_pause;
     out->stream.flush = out_flush;
@@ -666,7 +662,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.set_observer = out_set_observer;
     out->stream.get_buffer_info = out_get_buffer_info;
     out->stream.is_buffer_available = out_is_buffer_available;
-
+#endif
     *stream_out = &out->stream;
     return 0;
 
@@ -688,10 +684,10 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
 /** This method creates and opens the audio hardware input stream */
 static int adev_open_input_stream(struct audio_hw_device *dev,
-                                  audio_io_handle_t handle,
+                                  audio_io_handle_t handle __unused,
                                   audio_devices_t devices,
                                   audio_config *config,
-                                  audio_stream_in **stream_in, audio_input_flags_t flags,
+                                  audio_stream_in **stream_in, audio_input_flags_t flags __unused,
                                   const char * address __unused,
                                   audio_source_t source __unused)
 {
@@ -779,7 +775,6 @@ static int qcom_adev_close(hw_device_t* device)
 static int qcom_adev_open(const hw_module_t* module, const char* name,
                             hw_device_t** device)
 {
-    struct qcom_audio_device *qadev;
     int ret;
 
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
@@ -799,9 +794,6 @@ static int qcom_adev_open(const hw_module_t* module, const char* name,
     qadev->device.set_voice_volume = adev_set_voice_volume;
     qadev->device.set_master_volume = adev_set_master_volume;
     qadev->device.get_master_volume = adev_get_master_volume;
-#ifdef QCOM_FM_ENABLED
-    qadev->device.set_fm_volume = adev_set_fm_volume;
-#endif
     qadev->device.set_mode = adev_set_mode;
     qadev->device.set_mic_mute = adev_set_mic_mute;
     qadev->device.get_mic_mute = adev_get_mic_mute;
@@ -830,21 +822,21 @@ err_create_audio_hw:
 }
 
 static struct hw_module_methods_t qcom_audio_module_methods = {
-        open: qcom_adev_open
+        .open = qcom_adev_open
 };
 
 struct qcom_audio_module HAL_MODULE_INFO_SYM = {
-    module: {
-        common: {
-            tag: HARDWARE_MODULE_TAG,
-            module_api_version:  AUDIO_DEVICE_API_VERSION_1_0,
-            hal_api_version: HARDWARE_HAL_API_VERSION,
-            id: AUDIO_HARDWARE_MODULE_ID,
-            name: "QCOM Audio HW HAL",
-            author: "Code Aurora Forum",
-            methods: &qcom_audio_module_methods,
-            dso : NULL,
-            reserved : {0},
+    .module = {
+        .common = {
+            .tag = HARDWARE_MODULE_TAG,
+            .module_api_version = AUDIO_DEVICE_API_VERSION_1_0,
+            .hal_api_version = HARDWARE_HAL_API_VERSION,
+            .id = AUDIO_HARDWARE_MODULE_ID,
+            .name = "QCOM Audio HW HAL",
+            .author = "Code Aurora Forum",
+            .methods = &qcom_audio_module_methods,
+            .dso = NULL,
+            .reserved = {0},
         },
     },
 };

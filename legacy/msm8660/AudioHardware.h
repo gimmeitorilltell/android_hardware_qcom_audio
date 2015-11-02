@@ -124,7 +124,7 @@ enum tty_modes {
 
 #define AUDIO_HW_IN_SAMPLERATE 8000                 // Default audio input sample rate
 #define AUDIO_HW_IN_CHANNELS (AUDIO_CHANNEL_IN_MONO) // Default audio input channel mask
-#define AUDIO_HW_IN_BUFFERSIZE 480 * 4                 // Default audio input buffer size
+#define AUDIO_HW_IN_BUFFERSIZE 2048                 // Default audio input buffer size
 #define AUDIO_HW_IN_FORMAT (AUDIO_FORMAT_PCM_16_BIT)  // Default audio input sample format
 #ifdef QCOM_VOIP_ENABLED
 #define AUDIO_HW_VOIP_BUFFERSIZE_8K 320
@@ -150,11 +150,8 @@ public:
 
     virtual status_t    setVoiceVolume(float volume);
     virtual status_t    setMasterVolume(float volume);
-#ifdef QCOM_FM_ENABLED
-    virtual status_t    setFmVolume(float volume);
-#endif
     virtual status_t    setMode(int mode);
-    virtual status_t    setMasterMute(bool muted);
+    virtual status_t setMasterMute(bool muted);
 
     // mic mute
     virtual status_t    setMicMute(bool state);
@@ -164,15 +161,15 @@ public:
     virtual String8     getParameters(const String8& keys);
 
     // create I/O streams
-    virtual AudioStreamOut* openOutputStreamWithFlags(
+    virtual AudioStreamOut* openOutputStream(
                                 uint32_t devices,
-                                audio_output_flags_t flags=(audio_output_flags_t)0,
                                 int *format=0,
                                 uint32_t *channels=0,
                                 uint32_t *sampleRate=0,
                                 status_t *status=0);
-    virtual AudioStreamOut* openOutputStream(
+    virtual AudioStreamOut* openOutputStreamWithFlags(
                                 uint32_t devices,
+                                audio_output_flags_t flags=(audio_output_flags_t)0,
                                 int *format=0,
                                 uint32_t *channels=0,
                                 uint32_t *sampleRate=0,
@@ -234,6 +231,7 @@ private:
 #endif
 #ifdef QCOM_FM_ENABLED
     status_t    enableFM(int sndDevice);
+    void        handleFm(int device);
 #endif
     status_t    enableComboDevice(uint32_t sndDevice, bool enableOrDisable);
 #ifdef QCOM_FM_ENABLED
@@ -252,28 +250,9 @@ private:
                                 int *pFormat,
                                 uint32_t *pChannels,
                                 uint32_t *pRate);
-        virtual uint32_t sampleRate() const {
-            char af_quality[PROP_VALUE_MAX];
-            property_get("af.resampler.quality",af_quality,"0");
-            if(strcmp("255",af_quality) == 0) {
-                ALOGV("SampleRate 48k");
-                return 48000;
-            } else {
-                ALOGV("SampleRate 44.1k");
-                return 44100;
-            }
-        }
-        virtual size_t bufferSize() const {
-            char af_quality[PROP_VALUE_MAX];
-            property_get("af.resampler.quality",af_quality,"0");
-            if(strcmp("255",af_quality) == 0) {
-                ALOGV("Bufsize 5248");
-                return 5248;
-            } else {
-                ALOGV("Bufsize 4800");
-                return 4800;
-            }
-        }
+        virtual uint32_t    sampleRate() const { return 48000; }
+        virtual size_t      bufferSize() const { return 5248; }
+
         virtual uint32_t    channels() const { return AUDIO_CHANNEL_OUT_STEREO; }
         virtual int         format() const { return AUDIO_FORMAT_PCM_16_BIT; }
 
@@ -287,7 +266,9 @@ private:
         virtual String8     getParameters(const String8& keys);
                 uint32_t    devices() { return mDevices; }
         virtual status_t    getRenderPosition(uint32_t *dspFrames);
-        virtual status_t    getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
+
+
+        virtual status_t getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
 
     private:
                 AudioHardware* mHardware;
@@ -322,7 +303,8 @@ private:
         virtual String8     getParameters(const String8& keys);
                 uint32_t    devices() { return mDevices; }
         virtual status_t    getRenderPosition(uint32_t *dspFrames);
-        virtual status_t    getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
+
+        virtual status_t getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
 
     private:
                 AudioHardware* mHardware;
@@ -338,6 +320,7 @@ private:
     };
 #endif
 
+#ifdef QCOM_TUNNEL_LPA_ENABLED
 class AudioSessionOutLPA : public AudioStreamOut
 {
 public:
@@ -393,7 +376,8 @@ public:
     // return the number of audio frames written by the audio dsp to DAC since
     // the output has exited standby
     virtual status_t    getRenderPosition(uint32_t *dspFrames);
-    virtual status_t    getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
+
+    virtual status_t getPresentationPosition(uint64_t *frames, struct timespec *timestamp);
 
     virtual status_t    getNextWriteTimestamp(int64_t *timestamp);
     virtual status_t    setObserver(void *observer);
@@ -479,6 +463,7 @@ private:
 	int afd;
 	int ionfd;
 };
+#endif
 
 #ifdef TUNNEL_PLAYBACK
 class AudioSessionOutTunnel : public AudioStreamOut
